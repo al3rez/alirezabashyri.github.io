@@ -46,8 +46,14 @@ pre {
 	margin: 2rem 0;
 }
 
+img {
+    border-radius: 5px;
+}
+
 code,pre {
 	background: rgb(236, 237, 238);
+    font-family: system-ui;
+    font-style: italic;
 }
 
 code {

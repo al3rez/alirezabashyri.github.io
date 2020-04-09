@@ -1,16 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
- <title>Alireza Bashiri</title>
+ <title>Blog</title>
  <link href="http://localhost:4000/atom.xml" rel="self"/>
  <link href="http://localhost:4000/"/>
- <updated>2020-04-08T22:38:51+07:00</updated>
+ <updated>2020-04-10T00:22:14+07:00</updated>
  <id>http://localhost:4000</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Service Objects with ActiveModel and SimpleDelegator</title>
+   <link href="http://localhost:4000/2020/04/09/service-objects-using-activemodel-and-simpledelegator"/>
+   <updated>2020-04-09T00:02:00+07:00</updated>
+   <id>http://localhost:4000/2020/04/09/service-objects-using-activemodel-and-simpledelegator</id>
+   <content type="html">&lt;p&gt;&lt;img src=&quot;/serve.png&quot; alt=&quot;serve&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;One of the worst practices in Ruby On Rails is to clutter the Gemfile to do
+basics as authentication, authorization, validation, etc. considering the
+fact that they are practiced for so long and they can be accomplished using just
+the batteries already included in Ruby On Rails; service objects are no
+different for which developers often end up using different gems to do such a
+simple pattern.&lt;/p&gt;
+
+&lt;p&gt;In the favour of simplicity and the fact that I never trust dependencies due to 
+to the complexity they bring in I’ve been using &lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveModel&lt;/code&gt; and
+&lt;code class=&quot;highlighter-rouge&quot;&gt;SimpleDelegator&lt;/code&gt; to apply service objects through a consistent interface
+across the controllers as well as avoiding dependency clutter and here’s the results.&lt;/p&gt;
+
+&lt;h1 id=&quot;login-case&quot;&gt;Login case&lt;/h1&gt;
+&lt;p&gt;Let’s consider a user logging in use case;&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt; Users can login with password and email
+&amp;gt; Users cannot login with wrong password / email
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;So we have &lt;em&gt;2 cases&lt;/em&gt; which we have to cover in our implementation to do that I
+use &lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveModel::Validations&lt;/code&gt; to validate the parameters I receive from the
+controller and using &lt;code class=&quot;highlighter-rouge&quot;&gt;save&lt;/code&gt; method to keep interface consistency.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Login&lt;/span&gt;
+  &lt;span class=&quot;kp&quot;&gt;include&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveModel&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Model&lt;/span&gt;
+
+  &lt;span class=&quot;nb&quot;&gt;attr_accessor&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:email&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:user&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;validates&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:email&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;presence: &lt;/span&gt;&lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;validates&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;presence: &lt;/span&gt;&lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;validates&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;presence: &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;message: &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;email or password is wrong&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;initialize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;permit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:email&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;vi&quot;&gt;@user&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;find_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;email: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;email&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;status: :active&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;authenticate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;save&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;invalid?&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# This will generate and refresh user's token and return it&lt;/span&gt;
+    &lt;span class=&quot;no&quot;&gt;Tokenizer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;generate_and_refresh!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;vi&quot;&gt;@user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Here if no user found it will set &lt;code class=&quot;highlighter-rouge&quot;&gt;@user&lt;/code&gt; variable to &lt;code class=&quot;highlighter-rouge&quot;&gt;nil&lt;/code&gt; and user presence
+validation will handle the error which keep us from writing an error handling
+part except a message.&lt;/p&gt;
+
+&lt;p&gt;And the controller would be like;&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LoginController&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ApplicationController&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;skip_before_action&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:authenticate&lt;/span&gt;
+  &lt;span class=&quot;no&quot;&gt;INCLUDED&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;%i[positions]&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;create&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;login&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;save&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;json: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;include: &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;INCLUDED&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;json: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;status: :bad_request&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;kp&quot;&gt;private&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;serializer&lt;/span&gt;
+    &lt;span class=&quot;no&quot;&gt;UserSerializer&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;user_params&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;permit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:email&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:password&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This is already battle-tested in &lt;em&gt;&lt;strong&gt;production&lt;/strong&gt;&lt;/em&gt; and it works like a charm.&lt;/p&gt;
+
+&lt;h2 id=&quot;approval-flow&quot;&gt;Approval flow&lt;/h2&gt;
+&lt;p&gt;Let’s consider a use case that your flow needs to go through multiple approvals
+and each approval stage has its own validations and business logic. There are a
+lot of ways to handle this;&lt;/p&gt;
+
+&lt;h3 id=&quot;activerecord-callbacks&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveRecord&lt;/code&gt; callbacks&lt;/h3&gt;
+&lt;p&gt;It may seem simple solution but you have to write tons of conditions to avoid
+conflict between different use cases and hard to debug.&lt;/p&gt;
+
+&lt;h3 id=&quot;contextual-validations-with-on-context&quot;&gt;Contextual validations with &lt;code class=&quot;highlighter-rouge&quot;&gt;on: :context&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;This works just fine but it’ll clutter your models with a lot of business logic
+which it needs to somewhere else and it’s hard to test and modify due to
+it’s coupled with your model. e.g.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;validate&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:order_is_picked_before_packing&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;on: :packing&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;decorators--state-machines&quot;&gt;Decorators + State machines&lt;/h3&gt;
+&lt;p&gt;State machines needs to be force-feed to developers as they make handling data
+logic so convenient but to provide a good interface for your controllers you
+cannot treat state machine transitions or guard errors as you best bet you
+still need something in-between which in this case is a &lt;em&gt;decorator&lt;/em&gt; which give
+you best of both worlds &lt;em&gt;validations&lt;/em&gt;, &lt;em&gt;callbacks&lt;/em&gt;, separation of concern, ease
+of testing and etc. In our case we need some conditions are met before going to
+another state so the uses cases are;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;gt; MVPs cannot be approved before they're submitted
+&amp;gt; MVPs cannot be approved more than once by same user
+&amp;gt; MVPs cannot be approved unless they have enough approvals from different users
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s take look at the code;&lt;/p&gt;
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ApprovedMvp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;SimpleDelegator&lt;/span&gt;
+  &lt;span class=&quot;kp&quot;&gt;include&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveModel&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Validations&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;save&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;valid?&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;in_state?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:draft&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:minimal_viable_product&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;it should be submitted first&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;approvals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;find_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;user: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:minimal_viable_product&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;already been approved by user&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;approvals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;create!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;user: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;has_enough_approvals?&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;transition_to!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:approved&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Here we populate a decorated &lt;code class=&quot;highlighter-rouge&quot;&gt;MVP&lt;/code&gt; with contextual errors and pass it up to the controller&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;UseCases&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;MinimalViableProductsController&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ApplicationController&lt;/span&gt;
+  &lt;span class=&quot;no&quot;&gt;INCLUDED&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;UseCasesController&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;INCLUDED&lt;/span&gt;
+
+  &lt;span class=&quot;kp&quot;&gt;include&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;UseCaseScoped&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;approve&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ApprovedMvp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;minimal_viable_product&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;save&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;vi&quot;&gt;@current_user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;json: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;use_case&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;include: &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;INCLUDED&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;json: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In which will be handled by a &lt;code class=&quot;highlighter-rouge&quot;&gt;ErrorSerializer&lt;/code&gt; and a concern called
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ActsAsJSONAPI&lt;/code&gt; which I’ve written to handle different cases of serialization and
+error handling without dependencies and a lot of complexity which you can
+checkout &lt;a href=&quot;https://github.com/Netflix/fast_jsonapi/issues/102#issuecomment-559920150&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Codes that are written 50 years ago with zero-dependencies are working fine
+today and the ones are written today with dependencies may not work tomorrow :)&lt;/p&gt;
+
+&lt;p&gt;And don’t get me wrong I don’t mean to reinvent the wheel but don’t be afraid
+to build your own tool since each app has different needs and not all
+gems/libraries are going to fit yours. Bad cases that you &lt;em&gt;should&lt;/em&gt; never
+implement by yourself except for practice is encryption or an premature abstraction 
+(framework, etc) that’s takes your more than 1 day or 2.&lt;/p&gt;
+
+&lt;p&gt;I hope you’ve enjoyed it&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;br /&gt;
+Questions? &lt;em&gt;Email me at alirezabashiri@fastmail.com&lt;/em&gt;
+&lt;br /&gt;
+&lt;em&gt;Sorry I won’t add comment section to my blog here.&lt;/em&gt;&lt;/p&gt;
+</content>
+ </entry>
  
 
 </feed>
